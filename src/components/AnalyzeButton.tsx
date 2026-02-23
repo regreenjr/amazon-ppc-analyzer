@@ -4,19 +4,23 @@ import { useAppStore } from "@/store/app-store";
 import { Button } from "@/components/ui/button";
 import { parsePPCReport } from "@/lib/parsers/ppc-parser";
 import { parseSQPReport } from "@/lib/parsers/sqp-parser";
+import { parseOrganicXlsx, parseOrganicCsv } from "@/lib/parsers/organic-parser";
 import { aggregatePPCKeywords } from "@/lib/aggregator/ppc-aggregator";
 import { aggregateSQPQueries } from "@/lib/aggregator/sqp-aggregator";
 import { runAnalysis } from "@/lib/engine/rules-engine";
+import type { OrganicRankRow } from "@/types";
 
 export function AnalyzeButton() {
   const {
     ppcFiles,
     sqpFiles,
+    organicFiles,
     settings,
     isAnalyzing,
     setIsAnalyzing,
     setPPCReports,
     setSQPReports,
+    setOrganicData,
     setAggregatedPPC,
     setAggregatedSQP,
     setResults,
@@ -45,15 +49,31 @@ export function AnalyzeButton() {
       );
       setSQPReports(sqpReports);
 
-      // 3. Aggregate
+      // 3. Parse organic ranking files
+      const organicRows: OrganicRankRow[] = [];
+      for (const f of organicFiles) {
+        const ext = f.name.split(".").pop()?.toLowerCase();
+        if (ext === "xlsx") {
+          const buffer = await f.file.arrayBuffer();
+          const rows = await parseOrganicXlsx(buffer);
+          organicRows.push(...rows);
+        } else {
+          const text = await f.file.text();
+          const rows = await parseOrganicCsv(text);
+          organicRows.push(...rows);
+        }
+      }
+      setOrganicData(organicRows);
+
+      // 4. Aggregate
       const aggPPC = aggregatePPCKeywords(ppcReports);
       setAggregatedPPC(aggPPC);
 
       const aggSQP = aggregateSQPQueries(sqpReports);
       setAggregatedSQP(aggSQP);
 
-      // 4. Run analysis
-      const results = runAnalysis(aggPPC, aggSQP, settings);
+      // 5. Run analysis
+      const results = runAnalysis(aggPPC, aggSQP, settings, organicRows);
       setResults(results);
     } catch (err) {
       console.error("Analysis failed:", err);

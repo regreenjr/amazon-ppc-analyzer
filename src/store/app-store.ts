@@ -8,16 +8,20 @@ import {
   AnalysisSettings,
   AnalysisResult,
   ActionType,
+  OrganicRankRow,
 } from "@/types";
 
 interface AppState {
   // File management
   ppcFiles: UploadedFile[];
   sqpFiles: UploadedFile[];
+  organicFiles: UploadedFile[];
   addPPCFile: (file: UploadedFile) => void;
   addSQPFile: (file: UploadedFile) => void;
+  addOrganicFile: (file: UploadedFile) => void;
   removePPCFile: (id: string) => void;
   removeSQPFile: (id: string) => void;
+  removeOrganicFile: (id: string) => void;
 
   // Parsed data (intermediate)
   ppcReports: PPCKeywordRow[][];
@@ -28,8 +32,10 @@ interface AppState {
   // Aggregated data
   aggregatedPPC: AggregatedKeyword[];
   aggregatedSQP: SQPAggregatedQuery[];
+  organicData: OrganicRankRow[];
   setAggregatedPPC: (data: AggregatedKeyword[]) => void;
   setAggregatedSQP: (data: SQPAggregatedQuery[]) => void;
+  setOrganicData: (data: OrganicRankRow[]) => void;
 
   // Settings
   settings: AnalysisSettings;
@@ -58,10 +64,12 @@ const DEFAULT_SETTINGS: AnalysisSettings = {
 const initialState = {
   ppcFiles: [] as UploadedFile[],
   sqpFiles: [] as UploadedFile[],
+  organicFiles: [] as UploadedFile[],
   ppcReports: [] as PPCKeywordRow[][],
   sqpReports: [] as SQPWeeklyRow[][],
   aggregatedPPC: [] as AggregatedKeyword[],
   aggregatedSQP: [] as SQPAggregatedQuery[],
+  organicData: [] as OrganicRankRow[],
   settings: DEFAULT_SETTINGS,
   results: null as AnalysisResult | null,
   isAnalyzing: false,
@@ -76,6 +84,8 @@ export const useAppStore = create<AppState>()((set) => ({
     set((state) => ({ ppcFiles: [...state.ppcFiles, file] })),
   addSQPFile: (file) =>
     set((state) => ({ sqpFiles: [...state.sqpFiles, file] })),
+  addOrganicFile: (file) =>
+    set((state) => ({ organicFiles: [...state.organicFiles, file] })),
   removePPCFile: (id) =>
     set((state) => ({
       ppcFiles: state.ppcFiles.filter((f) => f.id !== id),
@@ -83,6 +93,10 @@ export const useAppStore = create<AppState>()((set) => ({
   removeSQPFile: (id) =>
     set((state) => ({
       sqpFiles: state.sqpFiles.filter((f) => f.id !== id),
+    })),
+  removeOrganicFile: (id) =>
+    set((state) => ({
+      organicFiles: state.organicFiles.filter((f) => f.id !== id),
     })),
 
   // Parsed data
@@ -92,6 +106,7 @@ export const useAppStore = create<AppState>()((set) => ({
   // Aggregated data
   setAggregatedPPC: (data) => set({ aggregatedPPC: data }),
   setAggregatedSQP: (data) => set({ aggregatedSQP: data }),
+  setOrganicData: (data) => set({ organicData: data }),
 
   // Settings
   updateSettings: (partial) =>

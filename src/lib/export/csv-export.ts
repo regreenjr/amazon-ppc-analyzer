@@ -18,6 +18,8 @@ const CSV_COLUMNS = [
   "Avg Search Volume",
   "Click Share (ASIN)",
   "Purchase Share (ASIN)",
+  "Organic Rank",
+  "Organic Search Vol",
   "Source",
   "Reason",
 ];
@@ -52,6 +54,8 @@ function recommendationToRow(rec: Recommendation): string[] {
     formatNullableNumber(rec.avgSearchVolume),
     fmtPct(rec.avgClickShareAsin),
     fmtPct(rec.avgPurchaseShareAsin),
+    formatNullableNumber(rec.organicRank),
+    formatNullableNumber(rec.organicSearchVolume),
     rec.source,
     rec.reason,
   ];

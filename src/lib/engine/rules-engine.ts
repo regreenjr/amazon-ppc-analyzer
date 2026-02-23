@@ -5,6 +5,7 @@ import {
   AnalysisResult,
   Recommendation,
   ActionType,
+  OrganicRankRow,
 } from "@/types";
 import { checkDataSufficiency } from "./rules/data-sufficiency";
 import { evaluateACOS } from "./rules/acos-performance";
@@ -24,7 +25,8 @@ import { detectTrends } from "./rules/trend-flags";
 export function runAnalysis(
   ppcKeywords: AggregatedKeyword[],
   sqpQueries: SQPAggregatedQuery[],
-  settings: AnalysisSettings
+  settings: AnalysisSettings,
+  organicData: OrganicRankRow[] = []
 ): AnalysisResult {
   // 1. Build lookup maps
   const ppcMap = new Map<string, AggregatedKeyword>();
@@ -35,6 +37,11 @@ export function runAnalysis(
   const sqpMap = new Map<string, SQPAggregatedQuery>();
   for (const q of sqpQueries) {
     sqpMap.set(q.searchQuery.toLowerCase(), q);
+  }
+
+  const organicMap = new Map<string, OrganicRankRow>();
+  for (const o of organicData) {
+    organicMap.set(o.searchTerm.toLowerCase(), o);
   }
 
   // 2. Collect all unique keywords from both sources
@@ -49,7 +56,8 @@ export function runAnalysis(
     const ppc = ppcMap.get(keywordLower) ?? null;
     const sqp = sqpMap.get(keywordLower) ?? null;
 
-    const rec = buildRecommendation(ppc, sqp, ppcMap, settings);
+    const organic = organicMap.get(keywordLower) ?? null;
+    const rec = buildRecommendation(ppc, sqp, organic, ppcMap, settings);
     recommendations.push(rec);
   }
 
@@ -83,6 +91,7 @@ export function runAnalysis(
 function buildRecommendation(
   ppc: AggregatedKeyword | null,
   sqp: SQPAggregatedQuery | null,
+  organic: OrganicRankRow | null,
   ppcMap: Map<string, AggregatedKeyword>,
   settings: AnalysisSettings
 ): Recommendation {
@@ -149,6 +158,9 @@ function buildRecommendation(
     avgPurchaseShareAsin: sqp?.avgPurchaseShareAsin ?? null,
     clickToPurchaseAsin: sqp?.avgClickToPurchaseAsin ?? null,
     clickToPurchaseTotal: sqp?.avgClickToPurchaseTotal ?? null,
+    // Organic ranking data
+    organicRank: organic?.medianRank ?? organic?.latestRank ?? null,
+    organicSearchVolume: organic?.searchVolume ?? null,
     // Explanation
     reason,
     source,

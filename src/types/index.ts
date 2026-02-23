@@ -105,6 +105,9 @@ export interface Recommendation {
   avgPurchaseShareAsin: number | null;
   clickToPurchaseAsin: number | null;
   clickToPurchaseTotal: number | null;
+  // Organic ranking data
+  organicRank: number | null;
+  organicSearchVolume: number | null;
   // Explanation
   reason: string;
   source: "ppc" | "sqp" | "both";
@@ -123,12 +126,21 @@ export interface AnalysisResult {
   analyzedAt: Date;
 }
 
+// === Organic Ranking Types ===
+
+export interface OrganicRankRow {
+  searchTerm: string;
+  medianRank: number | null;
+  searchVolume: number;
+  latestRank: number | null;
+}
+
 // === File Upload Types ===
 
 export interface UploadedFile {
   id: string;
   name: string;
-  type: "ppc" | "sqp";
+  type: "ppc" | "sqp" | "organic";
   file: File;
   parsedAt?: Date;
 }

@@ -80,6 +80,13 @@ const columns = [
     header: "Sales",
     cell: (info) => fmtCurrency(info.getValue()),
   }),
+  col.accessor("organicRank", {
+    header: "Organic Rank",
+    cell: (info) => {
+      const v = info.getValue();
+      return v != null ? v : "—";
+    },
+  }),
   col.accessor("reason", {
     header: "Reason",
     cell: (info) => <span className="text-xs text-muted-foreground">{info.getValue()}</span>,

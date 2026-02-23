@@ -3,20 +3,8 @@ import type { PPCKeywordRow } from "@/types";
 
 const SHEET_NAME = "Sponsored Products Campaigns";
 
-interface RawPPCRow {
-  Entity?: string;
-  "Campaign Name"?: string;
-  "Ad Group Name"?: string;
-  Keyword?: string;
-  "Match Type"?: string;
-  State?: string;
-  Bid?: string | number;
-  Impressions?: string | number;
-  Clicks?: string | number;
-  Spend?: string | number;
-  Sales?: string | number;
-  Orders?: string | number;
-}
+// Use Record to handle Amazon's varying column names
+type RawPPCRow = Record<string, string | number | undefined>;
 
 function safeFloat(value: string | number | undefined): number {
   if (value === undefined || value === null || value === "") return 0;
@@ -32,6 +20,19 @@ function safeInt(value: string | number | undefined): number {
 
 function isValidMatchType(value: string): value is "Broad" | "Phrase" | "Exact" {
   return value === "Broad" || value === "Phrase" || value === "Exact";
+}
+
+/**
+ * Get value from row, trying multiple possible column names.
+ * Amazon bulk reports use "Campaign Name" for editable fields and
+ * "Campaign Name (Informational only)" for read-only display values.
+ */
+function getField(row: RawPPCRow, ...keys: string[]): string | number | undefined {
+  for (const key of keys) {
+    const val = row[key];
+    if (val !== undefined && val !== null && val !== "") return val;
+  }
+  return undefined;
 }
 
 export async function parsePPCReport(
@@ -50,14 +51,14 @@ export async function parsePPCReport(
   const rows = XLSX.utils.sheet_to_json<RawPPCRow>(sheet);
 
   const keywordRows = rows.filter(
-    (row) => row.Entity === "Keyword"
+    (row) => row["Entity"] === "Keyword"
   );
 
   const parsed: PPCKeywordRow[] = keywordRows.map((row) => {
-    const spend = safeFloat(row.Spend);
-    const sales = safeFloat(row.Sales);
-    const clicks = safeInt(row.Clicks);
-    const orders = safeInt(row.Orders);
+    const spend = safeFloat(row["Spend"]);
+    const sales = safeFloat(row["Sales"]);
+    const clicks = safeInt(row["Clicks"]);
+    const orders = safeInt(row["Orders"]);
 
     const acos = sales > 0 ? (spend / sales) * 100 : 0;
     const cpc = clicks > 0 ? spend / clicks : 0;
@@ -68,14 +69,26 @@ export async function parsePPCReport(
       ? rawMatchType
       : "Broad";
 
+    // Amazon uses "Keyword Text" for the keyword, not "Keyword"
+    // Campaign/Ad Group names may be empty in editable columns; fall back to "(Informational only)" versions
+    const campaignName = String(
+      getField(row, "Campaign Name", "Campaign Name (Informational only)") ?? ""
+    );
+    const adGroupName = String(
+      getField(row, "Ad Group Name", "Ad Group Name (Informational only)") ?? ""
+    );
+    const keyword = String(
+      getField(row, "Keyword Text", "Keyword") ?? ""
+    );
+
     return {
-      campaignName: String(row["Campaign Name"] ?? ""),
-      adGroupName: String(row["Ad Group Name"] ?? ""),
-      keyword: String(row.Keyword ?? ""),
+      campaignName,
+      adGroupName,
+      keyword,
       matchType,
-      state: String(row.State ?? ""),
-      bid: safeFloat(row.Bid),
-      impressions: safeInt(row.Impressions),
+      state: String(row["State"] ?? ""),
+      bid: safeFloat(row["Bid"]),
+      impressions: safeInt(row["Impressions"]),
       clicks,
       spend,
       sales,

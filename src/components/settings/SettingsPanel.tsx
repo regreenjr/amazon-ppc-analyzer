@@ -1,0 +1,54 @@
+"use client";
+
+import { useAppStore } from "@/store/app-store";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+
+export function SettingsPanel() {
+  const { settings, updateSettings } = useAppStore();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Analysis Settings</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">ACOS Target %</label>
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={settings.acosTarget}
+              onChange={(e) => updateSettings({ acosTarget: Number(e.target.value) })}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Below this = increase bid</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">ACOS Threshold %</label>
+            <Input
+              type="number"
+              min={1}
+              max={200}
+              value={settings.acosThreshold}
+              onChange={(e) => updateSettings({ acosThreshold: Number(e.target.value) })}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Above this = lower bid</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Click Threshold</label>
+            <Input
+              type="number"
+              min={1}
+              max={1000}
+              value={settings.clickThreshold}
+              onChange={(e) => updateSettings({ clickThreshold: Number(e.target.value) })}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Min clicks for analysis</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useAppStore } from "@/store/app-store";
 import { computeWASPReport } from "@/lib/wasp/wasp-report";
 import { exportWASPToCSV } from "@/lib/export/wasp-export";
+import { exportWASPToPDF } from "@/lib/pdf/wasp-pdf";
 import { fmtCurrency, fmtPct } from "@/lib/utils/number-format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,11 +88,18 @@ export function WASPReport() {
         );
       })}
 
-      {/* Download button */}
-      <div className="flex justify-center">
-        <Button onClick={() => exportWASPToCSV(report)} variant="outline">
+      {/* Download buttons */}
+      <div className="flex flex-col items-center gap-2">
+        <Button onClick={() => exportWASPToPDF(report)}>
           Download WASP Report
         </Button>
+        <button
+          type="button"
+          onClick={() => exportWASPToCSV(report)}
+          className="text-xs text-muted-foreground underline hover:text-foreground"
+        >
+          Download CSV
+        </button>
       </div>
     </div>
   );

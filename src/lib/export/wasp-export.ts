@@ -1,6 +1,8 @@
 import { WASPReport } from "@/types";
 import { fmtCurrency, fmtPct } from "@/lib/utils/number-format";
 
+export { exportWASPToPDF } from "@/lib/pdf/wasp-pdf";
+
 const CSV_COLUMNS = [
   "Category",
   "Description",

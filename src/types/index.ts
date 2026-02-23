@@ -135,6 +135,25 @@ export interface OrganicRankRow {
   latestRank: number | null;
 }
 
+// === WASP Report Types ===
+
+export interface WASPCategory {
+  id: string;
+  label: string;
+  description: string;
+  keywordCount: number;
+  totalSpend: number;
+  estimatedWaste: number;
+  severity: "high" | "medium" | "low";
+}
+
+export interface WASPReport {
+  categories: WASPCategory[];
+  totalWastedSpend: number;
+  totalAdSpend: number;
+  wastePercentage: number;
+}
+
 // === File Upload Types ===
 
 export interface UploadedFile {

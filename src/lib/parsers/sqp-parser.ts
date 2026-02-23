@@ -1,10 +1,6 @@
 import Papa from "papaparse";
 import type { SQPWeeklyRow } from "@/types";
 
-/**
- * Find a column header that matches a regex pattern.
- * Returns the exact header string or undefined if not found.
- */
 function findColumn(
   headers: string[],
   pattern: RegExp
@@ -14,7 +10,6 @@ function findColumn(
 
 function safeFloat(value: string | undefined | null): number {
   if (value === undefined || value === null || value === "") return 0;
-  // Remove % signs and commas that Amazon sometimes includes
   const cleaned = String(value).replace(/[%,]/g, "").trim();
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? 0 : parsed;
@@ -28,47 +23,25 @@ function safeInt(value: string | undefined | null): number {
 }
 
 /**
- * Extract metadata from the lines preceding the data header.
- * Looks for ASIN and reporting date range in the metadata rows.
+ * Extract metadata from the first line(s) before the header.
+ * Format: Brand=["Old School Labs"],Reporting Range=["Monthly"],Select year=["2026"],Select month=["January"]
  */
 function extractMetadata(metadataLines: string[]): {
-  asin: string;
-  reportingWeek: string;
+  brand: string;
+  reportingRange: string;
 } {
-  let asin = "";
-  let reportingWeek = "";
+  let brand = "";
+  let reportingRange = "";
 
   for (const line of metadataLines) {
-    // Look for ASIN — typically in a line like "ASIN: B0XXXXXXXX" or as a CSV field
-    if (/\bASIN\b/i.test(line)) {
-      const asinMatch = line.match(/\b(B0[A-Z0-9]{8})\b/);
-      if (asinMatch) {
-        asin = asinMatch[1];
-      }
-    }
+    const brandMatch = line.match(/Brand=\["([^"]+)"\]/i);
+    if (brandMatch) brand = brandMatch[1];
 
-    // Look for reporting date range
-    if (/reporting\s*(date\s*)?range/i.test(line)) {
-      // Extract date portion — e.g., "01/01/2024 - 01/07/2024" or similar
-      const dateMatch = line.match(
-        /(\d{1,2}\/\d{1,2}\/\d{4}\s*[-–]\s*\d{1,2}\/\d{1,2}\/\d{4})/
-      );
-      if (dateMatch) {
-        reportingWeek = dateMatch[1].trim();
-      } else {
-        // Fallback: grab everything after the label
-        const parts = line.split(/[,:]\s*/);
-        const idx = parts.findIndex((p) =>
-          /reporting\s*(date\s*)?range/i.test(p)
-        );
-        if (idx !== -1 && idx + 1 < parts.length) {
-          reportingWeek = parts[idx + 1].trim();
-        }
-      }
-    }
+    const rangeMatch = line.match(/Reporting Range=\["([^"]+)"\]/i);
+    if (rangeMatch) reportingRange = rangeMatch[1];
   }
 
-  return { asin, reportingWeek };
+  return { brand, reportingRange };
 }
 
 export async function parseSQPReport(
@@ -76,10 +49,14 @@ export async function parseSQPReport(
 ): Promise<SQPWeeklyRow[]> {
   const lines = csvText.split(/\r?\n/);
 
-  // Find the header row: the first line that starts with "Search Query"
+  // Find the header row: contains "Search Query" (may be quoted)
   let headerIndex = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trimStart().startsWith("Search Query")) {
+    const trimmed = lines[i].trimStart();
+    if (
+      trimmed.startsWith("Search Query") ||
+      trimmed.startsWith('"Search Query')
+    ) {
       headerIndex = i;
       break;
     }
@@ -93,7 +70,7 @@ export async function parseSQPReport(
 
   // Extract metadata from lines above the header
   const metadataLines = lines.slice(0, headerIndex);
-  const { asin, reportingWeek } = extractMetadata(metadataLines);
+  extractMetadata(metadataLines);
 
   // Rejoin from header row onward for parsing
   const dataText = lines.slice(headerIndex).join("\n");
@@ -111,39 +88,42 @@ export async function parseSQPReport(
 
   const headers = parseResult.meta.fields ?? [];
 
-  // Map columns by partial match
+  // Map columns flexibly — Amazon SQP uses two different formats:
+  // Format A (newer Brand Analytics): "Clicks: Total Count", "Clicks: Brand Count", "Purchases: Brand Count"
+  // Format B (older ASIN-level): "Click Share - Total Count", "Click Share - ASIN Count"
+
   const colSearchQueryVolume = findColumn(headers, /Search Query Volume/i);
   const colSearchQueryScore = findColumn(headers, /Search Query Score/i);
 
-  // Click Share columns
-  const colClickShareTotal = findColumn(
-    headers,
-    /Click Share.*Total\s*Count/i
-  );
-  const colClickShareAsin = findColumn(
-    headers,
-    /Click Share.*(?:#\d+|Brand|ASIN)/i
-  ) ?? findColumnByAsin(headers, /Click Share/i, asin);
+  // Clicks total
+  const colClicksTotal = findColumn(headers, /Clicks?[:\s].*Total\s*Count/i)
+    ?? findColumn(headers, /Click Share.*Total\s*Count/i);
 
-  // Cart Add Share columns
-  const colCartAddShareTotal = findColumn(
-    headers,
-    /Cart Add Share.*Total\s*Count/i
-  );
-  const colCartAddShareAsin = findColumn(
-    headers,
-    /Cart Add Share.*(?:#\d+|Brand|ASIN)/i
-  ) ?? findColumnByAsin(headers, /Cart Add Share/i, asin);
+  // Clicks brand/ASIN
+  const colClicksBrand = findColumn(headers, /Clicks?[:\s].*Brand\s*Count/i)
+    ?? findColumn(headers, /Clicks?[:\s].*Brand\s*Share/i)
+    ?? findColumn(headers, /Click Share.*(?:#\d+|Brand|ASIN)/i);
 
-  // Purchase Share columns
-  const colPurchaseShareTotal = findColumn(
-    headers,
-    /Purchase Share.*Total\s*Count/i
-  );
-  const colPurchaseShareAsin = findColumn(
-    headers,
-    /Purchase Share.*(?:#\d+|Brand|ASIN)/i
-  ) ?? findColumnByAsin(headers, /Purchase Share/i, asin);
+  // Cart adds total
+  const colCartAddsTotal = findColumn(headers, /Cart Adds?[:\s].*Total\s*Count/i)
+    ?? findColumn(headers, /Cart Add Share.*Total\s*Count/i);
+
+  // Cart adds brand/ASIN
+  const colCartAddsBrand = findColumn(headers, /Cart Adds?[:\s].*Brand\s*Count/i)
+    ?? findColumn(headers, /Cart Adds?[:\s].*Brand\s*Share/i)
+    ?? findColumn(headers, /Cart Add Share.*(?:#\d+|Brand|ASIN)/i);
+
+  // Purchases total
+  const colPurchasesTotal = findColumn(headers, /Purchases?[:\s].*Total\s*Count/i)
+    ?? findColumn(headers, /Purchase Share.*Total\s*Count/i);
+
+  // Purchases brand/ASIN
+  const colPurchasesBrand = findColumn(headers, /Purchases?[:\s].*Brand\s*Count/i)
+    ?? findColumn(headers, /Purchases?[:\s].*Brand\s*Share/i)
+    ?? findColumn(headers, /Purchase Share.*(?:#\d+|Brand|ASIN)/i);
+
+  // Reporting Date column (in the data itself)
+  const colReportingDate = findColumn(headers, /Reporting\s*Date/i);
 
   const rows: SQPWeeklyRow[] = [];
 
@@ -151,52 +131,40 @@ export async function parseSQPReport(
     const searchQuery = (row["Search Query"] ?? "").trim();
     if (!searchQuery) continue;
 
-    const clickShareTotal = safeFloat(
-      colClickShareTotal ? row[colClickShareTotal] : undefined
-    );
-    const clickShareAsin = safeFloat(
-      colClickShareAsin ? row[colClickShareAsin] : undefined
-    );
-    const cartAddShareTotal = safeFloat(
-      colCartAddShareTotal ? row[colCartAddShareTotal] : undefined
-    );
-    const cartAddShareAsin = safeFloat(
-      colCartAddShareAsin ? row[colCartAddShareAsin] : undefined
-    );
-    const purchaseShareTotal = safeFloat(
-      colPurchaseShareTotal ? row[colPurchaseShareTotal] : undefined
-    );
-    const purchaseShareAsin = safeFloat(
-      colPurchaseShareAsin ? row[colPurchaseShareAsin] : undefined
-    );
+    const clicksTotal = safeFloat(colClicksTotal ? row[colClicksTotal] : undefined);
+    const clicksBrand = safeFloat(colClicksBrand ? row[colClicksBrand] : undefined);
+    const cartAddsTotal = safeFloat(colCartAddsTotal ? row[colCartAddsTotal] : undefined);
+    const cartAddsBrand = safeFloat(colCartAddsBrand ? row[colCartAddsBrand] : undefined);
+    const purchasesTotal = safeFloat(colPurchasesTotal ? row[colPurchasesTotal] : undefined);
+    const purchasesBrand = safeFloat(colPurchasesBrand ? row[colPurchasesBrand] : undefined);
 
-    // Derive click-to-cart and click-to-purchase rates
-    // These represent: of the clicks, what share converted to cart/purchase
-    const clickToCartTotal =
-      clickShareTotal > 0
-        ? (cartAddShareTotal / clickShareTotal) * 100
-        : 0;
-    const clickToCartAsin =
-      clickShareAsin > 0
-        ? (cartAddShareAsin / clickShareAsin) * 100
-        : 0;
+    // Derive share percentages from counts
+    const clickShareTotal = clicksTotal;
+    const clickShareAsin = clicksBrand;
+    const cartAddShareTotal = cartAddsTotal;
+    const cartAddShareAsin = cartAddsBrand;
+    const purchaseShareTotal = purchasesTotal;
+    const purchaseShareAsin = purchasesBrand;
+
+    // Derive conversion rates: purchases / clicks
     const clickToPurchaseTotal =
-      clickShareTotal > 0
-        ? (purchaseShareTotal / clickShareTotal) * 100
-        : 0;
+      clicksTotal > 0 ? (purchasesTotal / clicksTotal) * 100 : 0;
     const clickToPurchaseAsin =
-      clickShareAsin > 0
-        ? (purchaseShareAsin / clickShareAsin) * 100
-        : 0;
+      clicksBrand > 0 ? (purchasesBrand / clicksBrand) * 100 : 0;
+    const clickToCartTotal =
+      clicksTotal > 0 ? (cartAddsTotal / clicksTotal) * 100 : 0;
+    const clickToCartAsin =
+      clicksBrand > 0 ? (cartAddsBrand / clicksBrand) * 100 : 0;
+
+    // Get reporting date from data column or fallback
+    const reportingWeek = colReportingDate
+      ? (row[colReportingDate] ?? "").trim()
+      : "";
 
     rows.push({
       searchQuery,
-      searchQueryVolume: safeInt(
-        colSearchQueryVolume ? row[colSearchQueryVolume] : undefined
-      ),
-      searchQueryScore: safeInt(
-        colSearchQueryScore ? row[colSearchQueryScore] : undefined
-      ),
+      searchQueryVolume: safeInt(colSearchQueryVolume ? row[colSearchQueryVolume] : undefined),
+      searchQueryScore: safeInt(colSearchQueryScore ? row[colSearchQueryScore] : undefined),
       clickShareTotal,
       clickShareAsin,
       cartAddShareTotal,
@@ -208,25 +176,9 @@ export async function parseSQPReport(
       clickToPurchaseTotal: Math.round(clickToPurchaseTotal * 100) / 100,
       clickToPurchaseAsin: Math.round(clickToPurchaseAsin * 100) / 100,
       reportingWeek,
-      asin,
+      asin: "", // Brand-level reports don't have a single ASIN
     });
   }
 
   return rows;
-}
-
-/**
- * Fallback column finder: looks for a column matching the category pattern
- * that also contains the ASIN string. This handles Amazon's column naming
- * where the ASIN-specific column includes the actual ASIN in the header.
- */
-function findColumnByAsin(
-  headers: string[],
-  categoryPattern: RegExp,
-  asin: string
-): string | undefined {
-  if (!asin) return undefined;
-  return headers.find(
-    (h) => categoryPattern.test(h) && h.includes(asin)
-  );
 }

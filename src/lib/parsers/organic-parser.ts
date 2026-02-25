@@ -63,9 +63,7 @@ function parseRows(
   const latestDateCol = findLatestDateColumn(headers);
 
   if (!colSearchTerms) {
-    throw new Error(
-      'Could not find "Search Terms" column in organic ranking file'
-    );
+    return [];
   }
 
   const result: OrganicRankRow[] = [];

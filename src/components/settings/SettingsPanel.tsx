@@ -43,11 +43,13 @@ export function SettingsPanel() {
           <div>
             <label className="text-sm font-medium mb-1.5 block">Click Threshold</label>
             <Input
-              type="number"
-              min={1}
-              max={1000}
+              type="text"
+              inputMode="numeric"
               value={settings.clickThreshold}
-              onChange={(e) => updateSettings({ clickThreshold: Number(e.target.value) })}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, "");
+                updateSettings({ clickThreshold: Number(val) || 0 });
+              }}
             />
             <p className="text-xs text-muted-foreground mt-1">Min clicks for analysis</p>
           </div>

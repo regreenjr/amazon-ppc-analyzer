@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import type { SQPWeeklyRow } from "@/types";
 
 function findColumn(
@@ -181,4 +182,23 @@ export async function parseSQPReport(
   }
 
   return rows;
+}
+
+/**
+ * Parse SQP report from an XLSX file.
+ * Converts the first sheet to CSV text, then delegates to parseSQPReport.
+ */
+export async function parseSQPXlsx(
+  buffer: ArrayBuffer
+): Promise<SQPWeeklyRow[]> {
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+
+  if (!sheet) {
+    throw new Error("No sheets found in SQP XLSX file");
+  }
+
+  const csvText = XLSX.utils.sheet_to_csv(sheet);
+  return parseSQPReport(csvText);
 }

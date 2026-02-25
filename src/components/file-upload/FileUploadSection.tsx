@@ -65,7 +65,7 @@ export function FileUploadSection() {
           <CardTitle className="text-lg">SQP Weekly Reports</CardTitle>
         </CardHeader>
         <CardContent>
-          <DropZone accept=".csv" label="Upload SQP Weekly CSVs" onFiles={handleSQPFiles} />
+          <DropZone accept=".xlsx,.csv" label="Upload SQP Weekly Reports" onFiles={handleSQPFiles} />
           <FileList files={sqpFiles} onRemove={removeSQPFile} />
         </CardContent>
       </Card>

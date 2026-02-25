@@ -4,7 +4,7 @@ import { useAppStore } from "@/store/app-store";
 import { Button } from "@/components/ui/button";
 import { parsePPCReport } from "@/lib/parsers/ppc-parser";
 import { parsePPCSearchTermsCSV } from "@/lib/parsers/ppc-search-terms-parser";
-import { parseSQPReport } from "@/lib/parsers/sqp-parser";
+import { parseSQPReport, parseSQPXlsx } from "@/lib/parsers/sqp-parser";
 import { parseOrganicXlsx, parseOrganicCsv } from "@/lib/parsers/organic-parser";
 import { aggregatePPCKeywords } from "@/lib/aggregator/ppc-aggregator";
 import { aggregateSQPQueries } from "@/lib/aggregator/sqp-aggregator";
@@ -46,9 +46,14 @@ export function AnalyzeButton() {
       );
       setPPCReports(ppcReports);
 
-      // 2. Parse SQP reports
+      // 2. Parse SQP reports (CSV or XLSX)
       const sqpReports = await Promise.all(
         sqpFiles.map(async (f) => {
+          const ext = f.name.split(".").pop()?.toLowerCase();
+          if (ext === "xlsx") {
+            const buffer = await f.file.arrayBuffer();
+            return parseSQPXlsx(buffer);
+          }
           const text = await f.file.text();
           return parseSQPReport(text);
         })

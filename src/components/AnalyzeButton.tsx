@@ -3,6 +3,7 @@
 import { useAppStore } from "@/store/app-store";
 import { Button } from "@/components/ui/button";
 import { parsePPCReport } from "@/lib/parsers/ppc-parser";
+import { parsePPCSearchTermsCSV } from "@/lib/parsers/ppc-search-terms-parser";
 import { parseSQPReport } from "@/lib/parsers/sqp-parser";
 import { parseOrganicXlsx, parseOrganicCsv } from "@/lib/parsers/organic-parser";
 import { aggregatePPCKeywords } from "@/lib/aggregator/ppc-aggregator";
@@ -31,9 +32,14 @@ export function AnalyzeButton() {
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     try {
-      // 1. Parse PPC reports
+      // 1. Parse PPC reports (XLSX bulk reports or Search Terms CSVs)
       const ppcReports = await Promise.all(
         ppcFiles.map(async (f) => {
+          const ext = f.name.split(".").pop()?.toLowerCase();
+          if (ext === "csv") {
+            const text = await f.file.text();
+            return parsePPCSearchTermsCSV(text);
+          }
           const buffer = await f.file.arrayBuffer();
           return parsePPCReport(buffer);
         })

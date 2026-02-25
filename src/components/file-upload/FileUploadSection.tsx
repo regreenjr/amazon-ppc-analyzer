@@ -56,7 +56,7 @@ export function FileUploadSection() {
           <CardTitle className="text-lg">PPC Bulk Reports</CardTitle>
         </CardHeader>
         <CardContent>
-          <DropZone accept=".xlsx" label="Upload PPC Bulk Reports" onFiles={handlePPCFiles} />
+          <DropZone accept=".xlsx,.csv" label="Upload PPC Bulk Reports" onFiles={handlePPCFiles} />
           <FileList files={ppcFiles} onRemove={removePPCFile} />
         </CardContent>
       </Card>

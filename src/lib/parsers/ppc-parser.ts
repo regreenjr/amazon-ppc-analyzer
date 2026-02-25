@@ -42,10 +42,8 @@ export async function parsePPCReport(
 
   const sheet = workbook.Sheets[SHEET_NAME];
   if (!sheet) {
-    const available = workbook.SheetNames.join(", ");
-    throw new Error(
-      `Sheet "${SHEET_NAME}" not found. Available sheets: ${available}`
-    );
+    // Not a PPC bulk report — return empty so other parsers can handle it
+    return [];
   }
 
   const rows = XLSX.utils.sheet_to_json<RawPPCRow>(sheet);

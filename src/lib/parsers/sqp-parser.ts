@@ -186,19 +186,31 @@ export async function parseSQPReport(
 
 /**
  * Parse SQP report from an XLSX file.
- * Converts the first sheet to CSV text, then delegates to parseSQPReport.
+ * Parses all sheets and combines results (quarterly files have one sheet per period).
  */
 export async function parseSQPXlsx(
   buffer: ArrayBuffer
 ): Promise<SQPWeeklyRow[]> {
   const workbook = XLSX.read(buffer, { type: "array" });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
 
-  if (!sheet) {
+  if (workbook.SheetNames.length === 0) {
     throw new Error("No sheets found in SQP XLSX file");
   }
 
-  const csvText = XLSX.utils.sheet_to_csv(sheet);
-  return parseSQPReport(csvText);
+  const allRows: SQPWeeklyRow[] = [];
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) continue;
+
+    const csvText = XLSX.utils.sheet_to_csv(sheet);
+    try {
+      const rows = await parseSQPReport(csvText);
+      allRows.push(...rows);
+    } catch {
+      // Skip sheets that don't have SQP data
+    }
+  }
+
+  return allRows;
 }

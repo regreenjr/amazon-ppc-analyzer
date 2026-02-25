@@ -17,22 +17,26 @@ export function SettingsPanel() {
           <div>
             <label className="text-sm font-medium mb-1.5 block">ACOS Target %</label>
             <Input
-              type="number"
-              min={1}
-              max={100}
+              type="text"
+              inputMode="decimal"
               value={settings.acosTarget}
-              onChange={(e) => updateSettings({ acosTarget: Number(e.target.value) })}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9.]/g, "");
+                updateSettings({ acosTarget: Number(val) || 0 });
+              }}
             />
             <p className="text-xs text-muted-foreground mt-1">Below this = increase bid</p>
           </div>
           <div>
             <label className="text-sm font-medium mb-1.5 block">ACOS Threshold %</label>
             <Input
-              type="number"
-              min={1}
-              max={200}
+              type="text"
+              inputMode="decimal"
               value={settings.acosThreshold}
-              onChange={(e) => updateSettings({ acosThreshold: Number(e.target.value) })}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9.]/g, "");
+                updateSettings({ acosThreshold: Number(val) || 0 });
+              }}
             />
             <p className="text-xs text-muted-foreground mt-1">Above this = lower bid</p>
           </div>
